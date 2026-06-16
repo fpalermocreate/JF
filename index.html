@@ -326,8 +326,14 @@ body {
 </head>
 <body>
 
+<!-- LOADING -->
+<div id="screen-loading" class="screen active" style="align-items:center;justify-content:center;gap:12px">
+  <div style="font-size:32px">✦</div>
+  <div style="font-size:14px;color:var(--muted)">cargando nosotros...</div>
+</div>
+
 <!-- LOGIN -->
-<div id="screen-login" class="screen active">
+<div id="screen-login" class="screen">
   <div class="login-orb orb-l"></div>
   <div class="login-orb orb-r"></div>
   <div class="login-inner">
@@ -643,69 +649,61 @@ body {
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// ═══════════════ SUPABASE ═══════════════
+const SB_URL  = 'https://oxcfvgpmtecjlukxalgw.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94Y2Z2Z3BtdGVjamx1a3hhbGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NjQ5ODAsImV4cCI6MjA5NzE0MDk4MH0.4Zb9Biy3dhAGjVPPHcuIvMRYWmcCLCzqfcAzXN12oPg';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
 // ═══════════════ CONFIG ═══════════════
 const USERS = [
   { emoji:'✈️', color:'#60a5fa', color2:'#34d399', glow:'rgba(96,165,250,0.15)' },
   { emoji:'🕶️', color:'#f472b6', color2:'#c084fc', glow:'rgba(244,114,182,0.15)' }
 ];
 
+const DEFAULT_EXTRAS = [
+  { id:'conexion',  emoji:'💬', title:'Momento de conexión', sub:'Aprendiste algo nuevo del otro',  pts:1,  modal:'conexion' },
+  { id:'salida',    emoji:'🌃', title:'Salida juntos',        sub:'Cena, boliche, paseo...',         pts:2,  modal:'simple' },
+  { id:'foto',      emoji:'📸', title:'Foto juntos',          sub:'Subieron algo juntos',            pts:1,  modal:'simple' },
+  { id:'llamada',   emoji:'📞', title:'Llamada larga',        sub:'Más de 30 min al teléfono',       pts:1,  modal:'simple' },
+  { id:'sorpresa',  emoji:'🎀', title:'Sorpresa al otro',     sub:'Un detalle inesperado',           pts:3,  modal:'simple' },
+  { id:'viaje',     emoji:'✈️', title:'Viaje juntos',         sub:'Escapada o trip',                 pts:10, modal:'simple' },
+  { id:'cocinaron', emoji:'🍳', title:'Cocinaron juntos',     sub:'Una receta nueva',                pts:2,  modal:'simple' },
+];
+
+const DEFAULT_REWARDS = [
+  { emoji:'🎬', name:'Elegir la peli del finde',  cost:3, for_user:'both' },
+  { emoji:'💆', name:'Masaje de 15 min',           cost:5, for_user:'both' },
+  { emoji:'🍕', name:'Elegir dónde pedir comida',  cost:2, for_user:'both' },
+  { emoji:'🥂', name:'Una cita sorpresa',          cost:8, for_user:'both' },
+];
+
+const EMOJIS = ['🎬','🍕','💆','🛁','🧁','🎮','🥂','🌙','🎵','✈️','🤗','💌','🍫','🎊','🌹','☕','🏖️','🎁','🍷','🎲','🛍️','🎭','🏡','🌊','🎶','📸','💬','🌃','📞','🎀','🍳','⭐','🌅','🎠','🧗','🚴','🏊','🎨','📚','🌿','🧘','🐕','🎤','🍰','🧩'];
+
 // ═══════════════ STATE ═══════════════
 let state = {
   names: ['Facu', 'Juan Cruz'],
-  points: [0, 0],
-  streaks: [0, 0],
-  lastCheckin: [null, null],
-  lastBonus: {},
-  rewards: [
-    { id:1, emoji:'🎬', name:'Elegir la peli del finde',    cost:3, for:'both' },
-    { id:2, emoji:'💆', name:'Masaje de 15 min',            cost:5, for:'both' },
-    { id:3, emoji:'🍕', name:'Elegir dónde pedir comida',   cost:2, for:'both' },
-    { id:4, emoji:'🥂', name:'Una cita sorpresa',           cost:8, for:'both' },
+  stats: [
+    { points:0, streak:0, last_checkin:null, last_bonus:{} },
+    { points:0, streak:0, last_checkin:null, last_bonus:{} }
   ],
-  extras: [
-    { id:'conexion',  emoji:'💬', title:'Momento de conexión', sub:'Aprendiste algo nuevo del otro',  pts:1,  modal:'conexion' },
-    { id:'salida',    emoji:'🌃', title:'Salida juntos',        sub:'Cena, boliche, paseo...',         pts:2,  modal:'simple' },
-    { id:'foto',      emoji:'📸', title:'Foto juntos',          sub:'Subieron algo juntos',            pts:1,  modal:'simple' },
-    { id:'llamada',   emoji:'📞', title:'Llamada larga',        sub:'Más de 30 min al teléfono',       pts:1,  modal:'simple' },
-    { id:'sorpresa',  emoji:'🎀', title:'Sorpresa al otro',     sub:'Un detalle inesperado',           pts:3,  modal:'simple' },
-    { id:'viaje',     emoji:'✈️', title:'Viaje juntos',         sub:'Escapada o trip',                 pts:10, modal:'simple' },
-    { id:'cocinaron', emoji:'🍳', title:'Cocinaron juntos',     sub:'Una receta nueva',                pts:2,  modal:'simple' },
-  ],
+  rewards: [],
+  extras: [...DEFAULT_EXTRAS],
   history: [],
   discoveries: [],
-  rwId: 5,
-  exId: 100
 };
 
 let cu = 0;
 let pendingRedeem = null;
-let pendingBonus = null;
-let selEmoji = '🎁';
-let editRwId = null;
-let editSelEmoji = '🎁';
-let editExId = null;
-let editExEmoji = '⭐';
-let newExEmoji = '⭐';
-
-const EMOJIS = ['🎬','🍕','💆','🛁','🧁','🎮','🥂','🌙','🎵','✈️','🤗','💌','🍫','🎊','🌹','☕','🏖️','🎁','🍷','🎲','🛍️','🎭','🏡','🌊','🎶','📸','💬','🌃','📞','🎀','🍳','⭐','🌅','🎠','🧗','🚴','🏊','🎨','📚','🌿','🧘','🐕','🎤','🍰','🧩'];
-
-// ═══════════════ PERSIST ═══════════════
-function save() { localStorage.setItem('nosotros3', JSON.stringify(state)); }
-function load() {
-  const r = localStorage.getItem('nosotros3');
-  if (r) try {
-    const saved = JSON.parse(r);
-    state = { ...state, ...saved };
-    // ensure extras always has the conexion modal type preserved
-    if (saved.extras) {
-      state.extras = saved.extras.map(e => ({
-        ...e,
-        modal: e.id === 'conexion' ? 'conexion' : 'simple'
-      }));
-    }
-  } catch(e) {}
-}
+let pendingBonus  = null;
+let selEmoji      = '🎁';
+let editRwId      = null;
+let editSelEmoji  = '🎁';
+let editExId      = null;
+let editExEmoji   = '⭐';
+let newExEmoji    = '⭐';
+let loading       = false;
 
 // ═══════════════ UTILS ═══════════════
 function today() { return new Date().toISOString().slice(0,10); }
@@ -719,7 +717,7 @@ function toast(msg, dur=2600) {
   setTimeout(()=>el.classList.remove('show'), dur);
 }
 
-function openModal(id) { document.getElementById(id).classList.add('open'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 function applyTheme(uid) {
@@ -729,8 +727,115 @@ function applyTheme(uid) {
   document.documentElement.style.setProperty('--active-glow',   u.glow);
 }
 
-function bonusKey(uid, bonusId) { return `${uid}_${bonusId}`; }
-function bonusDone(uid, bonusId) { return state.lastBonus[bonusKey(uid,bonusId)] === today(); }
+function bonusDone(uid, bonusId) {
+  return (state.stats[uid].last_bonus||{})[bonusId] === today();
+}
+
+function setLoading(on) {
+  loading = on;
+  document.getElementById('ci-btn').disabled = on || state.stats[cu].last_checkin === today();
+}
+
+// ═══════════════ SUPABASE HELPERS ═══════════════
+async function dbGet(table, query={}) {
+  let q = sb.from(table).select('*');
+  for (const [k,v] of Object.entries(query)) q = q.eq(k, v);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+async function dbUpsert(table, row, onConflict) {
+  const opts = onConflict ? { onConflict } : {};
+  const { data, error } = await sb.from(table).upsert(row, opts).select();
+  if (error) throw error;
+  return data;
+}
+
+async function dbInsert(table, row) {
+  const { data, error } = await sb.from(table).insert(row).select();
+  if (error) throw error;
+  return data;
+}
+
+async function dbUpdate(table, match, values) {
+  let q = sb.from(table).update(values);
+  for (const [k,v] of Object.entries(match)) q = q.eq(k, v);
+  const { error } = await q;
+  if (error) throw error;
+}
+
+async function dbDelete(table, match) {
+  let q = sb.from(table).delete();
+  for (const [k,v] of Object.entries(match)) q = q.eq(k, v);
+  const { error } = await q;
+  if (error) throw error;
+}
+
+// ═══════════════ LOAD FROM SUPABASE ═══════════════
+async function loadAll() {
+  showLoading(true);
+  try {
+    // Users
+    let users = await dbGet('users');
+    if (!users.length) {
+      // First time — seed users
+      await dbInsert('users', { id:1, name:'Facu' });
+      await dbInsert('users', { id:2, name:'Juan Cruz' });
+      await dbInsert('user_stats', { user_id:1, points:0, streak:0, last_checkin:null, last_bonus:{} });
+      await dbInsert('user_stats', { user_id:2, points:0, streak:0, last_checkin:null, last_bonus:{} });
+      users = await dbGet('users');
+    }
+    state.names = users.sort((a,b)=>a.id-b.id).map(u=>u.name);
+
+    // Stats
+    const stats = await dbGet('user_stats');
+    state.stats = stats.sort((a,b)=>a.user_id-b.user_id).map(s=>({
+      points: s.points||0,
+      streak: s.streak||0,
+      last_checkin: s.last_checkin,
+      last_bonus: s.last_bonus||{}
+    }));
+
+    // Rewards
+    let rewards = await dbGet('rewards');
+    if (!rewards.length) {
+      for (const r of DEFAULT_REWARDS) await dbInsert('rewards', r);
+      rewards = await dbGet('rewards');
+    }
+    state.rewards = rewards;
+
+    // Extras
+    let extras = await dbGet('extras');
+    if (!extras.length) {
+      for (const e of DEFAULT_EXTRAS) await dbInsert('extras', e);
+      extras = await dbGet('extras');
+    }
+    state.extras = extras.map(e=>({...e, modal: e.id==='conexion'?'conexion':'simple'}));
+
+    // History
+    const hist = await dbGet('history');
+    state.history = hist.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+    // Discoveries
+    const disc = await dbGet('discoveries');
+    state.discoveries = disc.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  } catch(e) {
+    console.error(e);
+    toast('Error al conectar con la base de datos');
+  }
+  showLoading(false);
+}
+
+function showLoading(on) {
+  document.getElementById('screen-loading').classList.toggle('active', on);
+  if (!on) {
+    document.getElementById('ln0').textContent = state.names[0];
+    document.getElementById('ln1').textContent = state.names[1];
+    showScreen('screen-login');
+  }
+}
 
 // ═══════════════ SCREENS ═══════════════
 function showScreen(id) {
@@ -763,21 +868,28 @@ function switchTab(name) {
 }
 
 // ═══════════════ CHECK-IN ═══════════════
-function doCheckin() {
+async function doCheckin() {
   const td = today();
-  if (state.lastCheckin[cu]===td) { toast('Ya sumaste el día de hoy ✓'); return; }
-  state.streaks[cu] = (state.lastCheckin[cu]===yesterday()) ? state.streaks[cu]+1 : 1;
-  state.points[cu] += 1;
-  state.lastCheckin[cu] = td;
-  state.history.unshift({ who:cu, text:`${state.names[cu]} sumó un día`, pts:1, date:td });
-  save(); renderAll();
-  toast('✦ +1 punto — ¡un día más!');
+  const s = state.stats[cu];
+  if (s.last_checkin===td) { toast('Ya sumaste el día de hoy ✓'); return; }
+  setLoading(true);
+  try {
+    const newStreak = (s.last_checkin===yesterday()) ? s.streak+1 : 1;
+    const newPts = s.points+1;
+    await dbUpdate('user_stats', { user_id: cu+1 }, { points:newPts, streak:newStreak, last_checkin:td });
+    await dbInsert('history', { user_id:cu+1, text:`${state.names[cu]} sumó un día`, pts:1 });
+    state.stats[cu] = { ...s, points:newPts, streak:newStreak, last_checkin:td };
+    state.history.unshift({ user_id:cu+1, text:`${state.names[cu]} sumó un día`, pts:1, created_at:new Date().toISOString() });
+    renderAll();
+    toast('✦ +1 punto — ¡un día más!');
+  } catch(e) { toast('Error al guardar'); }
+  setLoading(false);
 }
 
 // ═══════════════ BONUS ═══════════════
 function clickBonus(bonusId) {
   const td = today();
-  if (state.lastCheckin[cu]!==td) { toast('Primero sumá el día de hoy'); return; }
+  if (state.stats[cu].last_checkin!==td) { toast('Primero sumá el día de hoy'); return; }
   if (bonusDone(cu, bonusId)) { toast('Ya sumaste este extra hoy'); return; }
   const b = state.extras.find(x=>x.id===bonusId);
   pendingBonus = b;
@@ -791,30 +903,41 @@ function clickBonus(bonusId) {
   }
 }
 
-function submitConexion() {
+async function submitConexion() {
   const txt = document.getElementById('conexion-txt').value.trim();
   if (!txt) { toast('Contá qué aprendiste del otro'); return; }
   const td = today();
-  state.points[cu] += 1;
-  state.lastBonus[bonusKey(cu,'conexion')] = td;
-  state.discoveries.unshift({ by:cu, text:txt, date:td });
-  state.history.unshift({ who:cu, text:`${state.names[cu]} — momento de conexión`, pts:1, date:td });
-  closeModal('modal-conexion');
-  save(); renderAll();
-  toast('💬 +1 pto — ¡conexión guardada!');
+  const s = state.stats[cu];
+  try {
+    const newBonus = { ...s.last_bonus, conexion: td };
+    await dbUpdate('user_stats', { user_id:cu+1 }, { points:s.points+1, last_bonus:newBonus });
+    await dbInsert('discoveries', { user_id:cu+1, text:txt });
+    await dbInsert('history', { user_id:cu+1, text:`${state.names[cu]} — momento de conexión`, pts:1 });
+    state.stats[cu] = { ...s, points:s.points+1, last_bonus:newBonus };
+    state.discoveries.unshift({ user_id:cu+1, text:txt, created_at:new Date().toISOString() });
+    state.history.unshift({ user_id:cu+1, text:`${state.names[cu]} — momento de conexión`, pts:1, created_at:new Date().toISOString() });
+    closeModal('modal-conexion');
+    renderAll();
+    toast('💬 +1 pto — ¡conexión guardada!');
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function submitSimpleBonus() {
+async function submitSimpleBonus() {
   if (!pendingBonus) return;
   const b = pendingBonus;
   const td = today();
-  state.points[cu] += b.pts;
-  state.lastBonus[bonusKey(cu, b.id)] = td;
-  state.history.unshift({ who:cu, text:`${state.names[cu]} — ${b.title}`, pts:b.pts, date:td });
-  closeModal('modal-bonus-simple');
-  pendingBonus = null;
-  save(); renderAll();
-  toast(`${b.emoji} +${b.pts} pto${b.pts!==1?'s':''}!`);
+  const s = state.stats[cu];
+  try {
+    const newBonus = { ...s.last_bonus, [b.id]: td };
+    await dbUpdate('user_stats', { user_id:cu+1 }, { points:s.points+b.pts, last_bonus:newBonus });
+    await dbInsert('history', { user_id:cu+1, text:`${state.names[cu]} — ${b.title}`, pts:b.pts });
+    state.stats[cu] = { ...s, points:s.points+b.pts, last_bonus:newBonus };
+    state.history.unshift({ user_id:cu+1, text:`${state.names[cu]} — ${b.title}`, pts:b.pts, created_at:new Date().toISOString() });
+    closeModal('modal-bonus-simple');
+    pendingBonus = null;
+    renderAll();
+    toast(`${b.emoji} +${b.pts} pto${b.pts!==1?'s':''}!`);
+  } catch(e) { toast('Error al guardar'); }
 }
 
 // ═══════════════ REWARDS ═══════════════
@@ -832,68 +955,82 @@ function renderEmojiGrid(gridId, sel, onPick) {
   ).join('');
 }
 
-function addReward() {
+async function addReward() {
   const name = document.getElementById('rw-name').value.trim();
   const cost = parseInt(document.getElementById('rw-cost').value)||1;
   const forV = document.getElementById('rw-for').value;
   if (!name) { toast('Falta el nombre'); return; }
-  state.rewards.push({ id:state.rwId++, emoji:selEmoji, name, cost, for:forV });
-  closeModal('modal-reward');
-  save(); renderRewards();
-  toast('🎁 Recompensa agregada');
+  try {
+    const rows = await dbInsert('rewards', { emoji:selEmoji, name, cost, for_user:forV });
+    state.rewards.push(rows[0]);
+    closeModal('modal-reward');
+    renderRewards();
+    toast('🎁 Recompensa agregada');
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function openEditReward(id) {
+async function openEditReward(id) {
   const r = state.rewards.find(x=>x.id===id);
   if (!r) return;
   editRwId = id;
   editSelEmoji = r.emoji;
   document.getElementById('edit-rw-name').value = r.name;
   document.getElementById('edit-rw-cost').value = r.cost;
-  document.getElementById('edit-rw-for').value = r.for;
+  document.getElementById('edit-rw-for').value = r.for_user||'both';
   renderEmojiGrid('edit-emoji-grid', editSelEmoji, e=>{ editSelEmoji=e; renderEmojiGrid('edit-emoji-grid',editSelEmoji,arguments.callee); });
   openModal('modal-edit-reward');
 }
 
-function saveEditReward() {
+async function saveEditReward() {
   const r = state.rewards.find(x=>x.id===editRwId);
   if (!r) return;
-  r.name = document.getElementById('edit-rw-name').value.trim() || r.name;
-  r.cost = parseInt(document.getElementById('edit-rw-cost').value)||r.cost;
-  r.for = document.getElementById('edit-rw-for').value;
-  r.emoji = editSelEmoji;
-  closeModal('modal-edit-reward');
-  save(); renderRewards();
-  toast('✓ Recompensa actualizada');
+  const name = document.getElementById('edit-rw-name').value.trim()||r.name;
+  const cost = parseInt(document.getElementById('edit-rw-cost').value)||r.cost;
+  const forV = document.getElementById('edit-rw-for').value;
+  try {
+    await dbUpdate('rewards', { id:editRwId }, { emoji:editSelEmoji, name, cost, for_user:forV });
+    Object.assign(r, { emoji:editSelEmoji, name, cost, for_user:forV });
+    closeModal('modal-edit-reward');
+    renderRewards();
+    toast('✓ Recompensa actualizada');
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function deleteReward(id) {
-  state.rewards = state.rewards.filter(x=>x.id!==id);
-  save(); renderRewards();
-  toast('Recompensa eliminada');
+async function deleteReward(id) {
+  try {
+    await dbDelete('rewards', { id });
+    state.rewards = state.rewards.filter(x=>x.id!==id);
+    renderRewards();
+    toast('Recompensa eliminada');
+  } catch(e) { toast('Error al eliminar'); }
 }
 
-function openRedeem(id) {
+async function openRedeem(id) {
   const r = state.rewards.find(x=>x.id===id);
   if (!r) return;
   pendingRedeem = id;
   document.getElementById('rdm-title').textContent = `${r.emoji} ${r.name}`;
-  document.getElementById('rdm-sub').textContent = `Cuesta ${r.cost} punto${r.cost!==1?'s':''}. Tenés ${state.points[cu]}. ¿Confirmás el canje?`;
+  document.getElementById('rdm-sub').textContent = `Cuesta ${r.cost} punto${r.cost!==1?'s':''}. Tenés ${state.stats[cu].points}. ¿Confirmás?`;
   openModal('modal-redeem');
 }
 
-function confirmRedeem() {
+async function confirmRedeem() {
   const r = state.rewards.find(x=>x.id===pendingRedeem);
   if (!r) return;
-  if (state.points[cu]<r.cost) { toast('No tenés suficientes puntos'); closeModal('modal-redeem'); return; }
-  state.points[cu] -= r.cost;
-  state.history.unshift({ who:cu, text:`${state.names[cu]} canjeó "${r.name}"`, pts:-r.cost, date:today() });
-  closeModal('modal-redeem');
-  save(); renderAll();
-  toast(`${r.emoji} ¡Canje listo!`);
+  const s = state.stats[cu];
+  if (s.points<r.cost) { toast('No tenés suficientes puntos'); closeModal('modal-redeem'); return; }
+  try {
+    await dbUpdate('user_stats', { user_id:cu+1 }, { points:s.points-r.cost });
+    await dbInsert('history', { user_id:cu+1, text:`${state.names[cu]} canjeó "${r.name}"`, pts:-r.cost });
+    state.stats[cu] = { ...s, points:s.points-r.cost };
+    state.history.unshift({ user_id:cu+1, text:`${state.names[cu]} canjeó "${r.name}"`, pts:-r.cost, created_at:new Date().toISOString() });
+    closeModal('modal-redeem');
+    renderAll(); renderRewards();
+    toast(`${r.emoji} ¡Canje listo!`);
+  } catch(e) { toast('Error al guardar'); }
 }
 
-// ═══════════════ EXTRAS (editar) ═══════════════
+// ═══════════════ EXTRAS ═══════════════
 function openAddExtra() {
   newExEmoji = '⭐';
   document.getElementById('ex-name').value = '';
@@ -903,16 +1040,19 @@ function openAddExtra() {
   openModal('modal-add-extra');
 }
 
-function addExtra() {
+async function addExtra() {
   const title = document.getElementById('ex-name').value.trim();
   const sub   = document.getElementById('ex-sub').value.trim();
   const pts   = parseInt(document.getElementById('ex-pts').value)||1;
   if (!title) { toast('Falta el nombre'); return; }
-  const id = 'ex_' + (state.exId++);
-  state.extras.push({ id, emoji:newExEmoji, title, sub: sub||'', pts, modal:'simple' });
-  closeModal('modal-add-extra');
-  save(); renderAll();
-  toast('✦ Extra agregado');
+  const id = 'ex_' + Date.now();
+  try {
+    await dbInsert('extras', { id, emoji:newExEmoji, title, sub, pts, modal:'simple' });
+    state.extras.push({ id, emoji:newExEmoji, title, sub, pts, modal:'simple' });
+    closeModal('modal-add-extra');
+    renderAll();
+    toast('✦ Extra agregado');
+  } catch(e) { toast('Error al guardar'); }
 }
 
 function openEditExtra(id) {
@@ -927,23 +1067,29 @@ function openEditExtra(id) {
   openModal('modal-edit-extra');
 }
 
-function saveEditExtra() {
+async function saveEditExtra() {
   const b = state.extras.find(x=>x.id===editExId);
   if (!b) return;
-  b.title = document.getElementById('edit-ex-name').value.trim() || b.title;
-  b.sub   = document.getElementById('edit-ex-sub').value.trim();
-  b.pts   = parseInt(document.getElementById('edit-ex-pts').value)||b.pts;
-  b.emoji = editExEmoji;
-  closeModal('modal-edit-extra');
-  save(); renderAll();
-  toast('✓ Extra actualizado');
+  const title = document.getElementById('edit-ex-name').value.trim()||b.title;
+  const sub   = document.getElementById('edit-ex-sub').value.trim();
+  const pts   = parseInt(document.getElementById('edit-ex-pts').value)||b.pts;
+  try {
+    await dbUpdate('extras', { id:editExId }, { emoji:editExEmoji, title, sub, pts });
+    Object.assign(b, { emoji:editExEmoji, title, sub, pts });
+    closeModal('modal-edit-extra');
+    renderAll();
+    toast('✓ Extra actualizado');
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function deleteExtra(id) {
-  if (state.extras.length <= 1) { toast('Dejá al menos un extra'); return; }
-  state.extras = state.extras.filter(x=>x.id!==id);
-  save(); renderAll();
-  toast('Extra eliminado');
+async function deleteExtra(id) {
+  if (state.extras.length<=1) { toast('Dejá al menos un extra'); return; }
+  try {
+    await dbDelete('extras', { id });
+    state.extras = state.extras.filter(x=>x.id!==id);
+    renderAll();
+    toast('Extra eliminado');
+  } catch(e) { toast('Error al eliminar'); }
 }
 
 // ═══════════════ SETTINGS ═══════════════
@@ -952,13 +1098,19 @@ function openSettings() {
   document.getElementById('set-n1').value = state.names[1];
   openModal('modal-settings');
 }
-function saveSettings() {
-  state.names[0] = document.getElementById('set-n0').value.trim()||state.names[0];
-  state.names[1] = document.getElementById('set-n1').value.trim()||state.names[1];
-  closeModal('modal-settings');
-  save(); renderAll();
-  document.getElementById('ln0').textContent = state.names[0];
-  document.getElementById('ln1').textContent = state.names[1];
+
+async function saveSettings() {
+  const n0 = document.getElementById('set-n0').value.trim()||state.names[0];
+  const n1 = document.getElementById('set-n1').value.trim()||state.names[1];
+  try {
+    await dbUpdate('users', { id:1 }, { name:n0 });
+    await dbUpdate('users', { id:2 }, { name:n1 });
+    state.names = [n0, n1];
+    closeModal('modal-settings');
+    renderAll();
+    document.getElementById('ln0').textContent = n0;
+    document.getElementById('ln1').textContent = n1;
+  } catch(e) { toast('Error al guardar'); }
 }
 
 // ═══════════════ RENDER ═══════════════
@@ -966,43 +1118,37 @@ function renderAll() {
   const ou = 1-cu;
   const td = today();
   const now = new Date();
+  const s = state.stats[cu];
+  const so = state.stats[ou];
 
-  // Header
-  document.getElementById('hdr-av').textContent = USERS[cu].emoji;
-  document.getElementById('hdr-name').textContent = state.names[cu];
-  document.getElementById('hdr-pts').textContent = `${state.points[cu]} punto${state.points[cu]!==1?'s':''}`;
-
-  // Hero
-  document.getElementById('hero-pts').textContent = state.points[cu];
-  document.getElementById('hero-streak').textContent = state.streaks[cu];
-  document.getElementById('other-av').textContent = USERS[ou].emoji;
+  document.getElementById('hdr-av').textContent    = USERS[cu].emoji;
+  document.getElementById('hdr-name').textContent  = state.names[cu];
+  document.getElementById('hdr-pts').textContent   = `${s.points} punto${s.points!==1?'s':''}`;
+  document.getElementById('hero-pts').textContent  = s.points;
+  document.getElementById('hero-streak').textContent = s.streak;
+  document.getElementById('other-av').textContent  = USERS[ou].emoji;
   document.getElementById('other-name').textContent = state.names[ou];
-  document.getElementById('other-pts').textContent = state.points[ou];
+  document.getElementById('other-pts').textContent = so.points;
 
-  // Dates
-  document.getElementById('today-wd').textContent = now.toLocaleDateString('es-AR',{weekday:'long'});
+  document.getElementById('today-wd').textContent   = now.toLocaleDateString('es-AR',{weekday:'long'});
   document.getElementById('today-full').textContent = now.toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
 
-  // Checkin btn
-  const ciDone = state.lastCheckin[cu]===td;
+  const ciDone = s.last_checkin===td;
   const btn = document.getElementById('ci-btn');
-  btn.disabled = ciDone;
+  btn.disabled = ciDone || loading;
   btn.textContent = ciDone ? '✓ sumado' : '+ 1 pto';
 
-  // Bonus list
   const ciLocked = !ciDone;
   document.getElementById('bonus-list').innerHTML = state.extras.map(b=>{
     const done = bonusDone(cu, b.id);
-    const cls = done ? 'done' : ciLocked ? 'locked' : '';
-    const tagCls = done ? 'b-tag done' : 'b-tag';
-    const tagTxt = done ? '✓' : `+${b.pts}`;
+    const cls = done?'done':ciLocked?'locked':'';
     return `<div class="bonus-row ${cls}" onclick="clickBonus('${b.id}')">
       <div class="b-emoji">${b.emoji}</div>
       <div class="b-text">
         <div class="b-title">${b.title}</div>
         <div class="b-sub">${b.sub}</div>
       </div>
-      <div class="${tagCls}">${tagTxt}</div>
+      <div class="${done?'b-tag done':'b-tag'}">${done?'✓':'+'+b.pts}</div>
       <div class="b-actions" onclick="event.stopPropagation()">
         <button class="b-edit-btn" onclick="openEditExtra('${b.id}')">✎</button>
         <button class="b-edit-btn b-del-btn" onclick="deleteExtra('${b.id}')">✕</button>
@@ -1015,16 +1161,17 @@ function renderAll() {
 }
 
 function renderRewards() {
-  const ou = 1-cu;
   const container = document.getElementById('rewards-list');
   if (!state.rewards.length) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">🎁</div>Todavía no hay recompensas.</div>';
     return;
   }
+  const s = state.stats[cu];
   container.innerHTML = state.rewards.map(r=>{
-    const canAfford = state.points[cu]>=r.cost;
-    const canUse = r.for==='both'||parseInt(r.for)===cu;
-    const forLbl = r.for==='both' ? 'Cualquiera' : r.for==='0' ? `Solo ${state.names[0]}` : `Solo ${state.names[1]}`;
+    const canAfford = s.points>=r.cost;
+    const forU = r.for_user||'both';
+    const canUse = forU==='both'||parseInt(forU)===cu;
+    const forLbl = forU==='both'?'Cualquiera':forU==='0'?`Solo ${state.names[0]}`:`Solo ${state.names[1]}`;
     return `<div class="reward-item">
       <div class="ri-emoji">${r.emoji}</div>
       <div class="ri-info">
@@ -1046,18 +1193,18 @@ function renderRewards() {
 function renderDiscoveries() {
   const ou = 1-cu;
   document.getElementById('sabe-lbl').textContent = `lo que ${state.names[ou]} sabe sobre ${state.names[cu]}`;
-  const mine = state.discoveries.filter(d=>d.by===ou);
+  const mine = state.discoveries.filter(d=>d.user_id===(ou+1));
   const c = document.getElementById('disc-list');
   if (!mine.length) {
-    c.innerHTML = `<div class="empty"><div class="empty-icon">💌</div>${state.names[ou]} todavía no registró ningún momento de conexión sobre vos.<br>Cuando lo haga, va a aparecer acá.</div>`;
+    c.innerHTML = `<div class="empty"><div class="empty-icon">💌</div>${state.names[ou]} todavía no registró ningún momento de conexión sobre vos.</div>`;
     return;
   }
   c.innerHTML = mine.map(d=>`
     <div class="disc-item">
       <div class="disc-hdr">
         <span style="color:var(--active-color)">♥</span>
-        <span class="disc-who">${state.names[d.by]} aprendió</span>
-        <span class="disc-date">${d.date}</span>
+        <span class="disc-who">${state.names[ou]} aprendió</span>
+        <span class="disc-date">${d.created_at?.slice(0,10)||''}</span>
       </div>
       <div class="disc-text">${esc(d.text)}</div>
     </div>`).join('');
@@ -1073,16 +1220,14 @@ function renderHistory() {
     <div class="history-item">
       <div>
         <div class="hi-text">${esc(h.text)}</div>
-        <div class="hi-date">${h.date}</div>
+        <div class="hi-date">${h.created_at?.slice(0,10)||''}</div>
       </div>
       <div class="hi-pts ${h.pts>0?'pos':'neg'}">${h.pts>0?'+':''}${h.pts}</div>
     </div>`).join('');
 }
 
 // ═══════════════ INIT ═══════════════
-load();
-document.getElementById('ln0').textContent = state.names[0];
-document.getElementById('ln1').textContent = state.names[1];
+loadAll();
 </script>
 </body>
 </html>
